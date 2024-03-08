@@ -17,6 +17,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
 
+# tmp imports
+import numpy as np
+
 try:
     import thop  # for FLOPS computation
 except ImportError:
@@ -366,9 +369,14 @@ class TracedModel(nn.Module):
         self.model = traced_script_module
         self.model.to(device)
         self.detect_layer.to(device)
+        # print(self.detect_layer.to(device))
         print(" model is traced! \n") 
 
     def forward(self, x, augment=False, profile=False):
         out = self.model(x)
         out = self.detect_layer(out)
+
+        # tmp = np.array(list(out[0][0]))
+        # print(tmp)
+        # print(list(out[0][0])[0])
         return out

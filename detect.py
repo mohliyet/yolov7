@@ -7,6 +7,8 @@ import torch
 import torch.backends.cudnn as cudnn
 from numpy import random
 
+import numpy as np #tmp
+
 from models.experimental import attempt_load
 from utils.datasets import LoadStreams, LoadImages
 from utils.general import check_img_size, check_requirements, check_imshow, non_max_suppression, apply_classifier, \
@@ -37,6 +39,8 @@ def detect(save_img=False):
 
     if trace:
         model = TracedModel(model, device, opt.img_size)
+        #tmp
+        # print("I'm running #1!")
 
     if half:
         model.half()  # to FP16
@@ -55,6 +59,7 @@ def detect(save_img=False):
         dataset = LoadStreams(source, img_size=imgsz, stride=stride)
     else:
         dataset = LoadImages(source, img_size=imgsz, stride=stride)
+        # print("I'm running #2!")
 
     # Get names and colors
     names = model.module.names if hasattr(model, 'module') else model.names
@@ -63,6 +68,7 @@ def detect(save_img=False):
     # Run inference
     if device.type != 'cpu':
         model(torch.zeros(1, 3, imgsz, imgsz).to(device).type_as(next(model.parameters())))  # run once
+        # print("I'm running #3!")
     old_img_w = old_img_h = imgsz
     old_img_b = 1
 
@@ -89,44 +95,68 @@ def detect(save_img=False):
         t2 = time_synchronized()
 
         # Apply NMS
-        pred = non_max_suppression(pred, opt.conf_thres, opt.iou_thres, classes=opt.classes, agnostic=opt.agnostic_nms)
+        pred = non_max_suppression(pred, opt.conf_thres, opt.iou_thres, classes=opt.classes, agnostic=opt.agnostic_nms,multi_label=False)
+        # print(np.array(pred[0])) #tmp
         t3 = time_synchronized()
 
         # Apply Classifier
         if classify:
             pred = apply_classifier(pred, modelc, img, im0s)
+            # print(pred)
 
         # Process detections
         for i, det in enumerate(pred):  # detections per image
+            # print(np.array(det),i)
+            # print(i)
             if webcam:  # batch_size >= 1
                 p, s, im0, frame = path[i], '%g: ' % i, im0s[i].copy(), dataset.count
             else:
                 p, s, im0, frame = path, '', im0s, getattr(dataset, 'frame', 0)
 
             p = Path(p)  # to Path
+            # print(p)
             save_path = str(save_dir / p.name)  # img.jpg
             txt_path = str(save_dir / 'labels' / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')  # img.txt
             gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
             if len(det):
                 # Rescale boxes from img_size to im0 size
                 det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
+                # print(det) # tmp
 
                 # Print results
                 for c in det[:, -1].unique():
                     n = (det[:, -1] == c).sum()  # detections per class
                     s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
 
-                # Write results
-                for *xyxy, conf, cls in reversed(det):
+                # Write results t_score,a_score,t_score,h_score,s_score
+                for i in reversed(det):
+                    xyxy = i[0:4]
+                    conf = i[4]
+                    cls = i[5]
+                    last_five = i[6:]
+                    # print(f'I am here!{conf} {cls} {last_five[0]}')
                     if save_txt:  # Write to file
                         xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
-                        line = (cls, *xywh, conf) if opt.save_conf else (cls, *xywh)  # label format
+                        last_five = last_five.tolist()
+                        line = (cls, *xywh, conf,*last_five) if opt.save_conf else (cls, *xywh)  # label format
                         with open(txt_path + '.txt', 'a') as f:
                             f.write(('%g ' * len(line)).rstrip() % line + '\n')
 
                     if save_img or view_img:  # Add bbox to image
                         label = f'{names[int(cls)]} {conf:.2f}'
                         plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=1)
+
+                # for *xyxy, conf, cls,*last_five in reversed(det):
+                #     print(xyxy)
+                #     if save_txt:  # Write to file
+                #         xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
+                #         line = (cls, *xywh, conf) if opt.save_conf else (cls, *xywh)  # label format
+                #         with open(txt_path + '.txt', 'a') as f:
+                #             f.write(('%g ' * len(line)).rstrip() % line + '\n')
+
+                #     if save_img or view_img:  # Add bbox to image
+                #         label = f'{names[int(cls)]} {conf:.2f}'
+                #         plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=1)
 
             # Print time (inference + NMS)
             print(f'{s}Done. ({(1E3 * (t2 - t1)):.1f}ms) Inference, ({(1E3 * (t3 - t2)):.1f}ms) NMS')

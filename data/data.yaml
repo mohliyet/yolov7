@@ -1,0 +1,7 @@
+
+train: data/sthsch/train
+val: data/sthsch/valid
+test: data/sthsch/test
+
+nc: 4
+names: ['ascaris','trichuris','hookworm','schistosoma']
