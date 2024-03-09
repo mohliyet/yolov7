@@ -124,8 +124,8 @@ def detect(save_img=False):
                 # print(det) # tmp
 
                 # Print results
-                for c in det[:, -1].unique():
-                    n = (det[:, -1] == c).sum()  # detections per class
+                for c in det[:, -6].unique():
+                    n = (det[:, -6] == c).sum()  # detections per class
                     s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
 
                 # Write results t_score,a_score,t_score,h_score,s_score
