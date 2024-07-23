@@ -1721,7 +1721,6 @@ class WindowAttention_v2(nn.Module):
         self.softmax = nn.Softmax(dim=-1)
 
     def forward(self, x, mask=None):
-        
         B_, N, C = x.shape
         qkv_bias = None
         if self.q_bias is not None:

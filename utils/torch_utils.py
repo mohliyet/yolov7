@@ -354,10 +354,12 @@ class TracedModel(nn.Module):
         self.model = model
 
         self.model = revert_sync_batchnorm(self.model)
+        # print(self.model)
         self.model.to('cpu')
         self.model.eval()
 
         self.detect_layer = self.model.model[-1]
+        # print(" detect_layer: ", self.detect_layer)
         self.model.traced = True
         
         rand_example = torch.rand(1, 3, img_size, img_size)
@@ -367,6 +369,8 @@ class TracedModel(nn.Module):
         traced_script_module.save("traced_model.pt")
         print(" traced_script_module saved! ")
         self.model = traced_script_module
+
+        # print(self.model)
         self.model.to(device)
         self.detect_layer.to(device)
         # print(self.detect_layer.to(device))
@@ -374,7 +378,9 @@ class TracedModel(nn.Module):
 
     def forward(self, x, augment=False, profile=False):
         out = self.model(x)
+        # print(" out: ", out)
         out = self.detect_layer(out)
+        # print(" out: ", out[1][0][0][1][0])
 
         # tmp = np.array(list(out[0][0]))
         # print(tmp)

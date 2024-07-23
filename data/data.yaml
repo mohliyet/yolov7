@@ -1,6 +1,6 @@
 
 train: data/sthsch/train
-val: data/sthsch/valid
+val: C:/Users/M/OneDrive - UGent/TWML/datasets/new_data_march/data/global/group4/renamed/images/
 test: data/sthsch/test
 
 nc: 4

@@ -250,7 +250,9 @@ def attempt_load(weights, map_location=None):
     for w in weights if isinstance(weights, list) else [weights]:
         attempt_download(w)
         ckpt = torch.load(w, map_location=map_location)  # load
+        # print(ckpt)
         model.append(ckpt['ema' if ckpt.get('ema') else 'model'].float().fuse().eval())  # FP32 model
+        # print(model)
     
     # Compatibility updates
     for m in model.modules():
@@ -260,8 +262,9 @@ def attempt_load(weights, map_location=None):
             m.recompute_scale_factor = None  # torch 1.11.0 compatibility
         elif type(m) is Conv:
             m._non_persistent_buffers_set = set()  # pytorch 1.6.0 compatibility
-    
+
     if len(model) == 1:
+        # print(model[-1])
         return model[-1]  # return model
     else:
         print('Ensemble created with %s\n' % weights)

@@ -636,6 +636,7 @@ class ComputeLossOTA:
         return loss * bs, torch.cat((lbox, lobj, lcls, loss)).detach()
 
     def build_targets(self, p, targets, imgs):
+        print('build_targets')
         
         #indices, anch = self.find_positive(p, targets)
         indices, anch = self.find_3_positive(p, targets)

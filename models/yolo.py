@@ -40,10 +40,12 @@ class Detect(nn.Module):
         self.m = nn.ModuleList(nn.Conv2d(x, self.no * self.na, 1) for x in ch)  # output conv
 
     def forward(self, x):
+        
         # x = x.copy()  # for profiling
         z = []  # inference output
         self.training |= self.export
         for i in range(self.nl):
+            
             x[i] = self.m[i](x[i])  # conv
             bs, _, ny, nx = x[i].shape  # x(bs,255,20,20) to x(bs,3,20,20,85)
             x[i] = x[i].view(bs, self.na, self.no, ny, nx).permute(0, 1, 3, 4, 2).contiguous()
@@ -51,8 +53,11 @@ class Detect(nn.Module):
             if not self.training:  # inference
                 if self.grid[i].shape[2:4] != x[i].shape[2:4]:
                     self.grid[i] = self._make_grid(nx, ny).to(x[i].device)
+                # print(np.array(x[i].sigmoid()))
                 y = x[i].sigmoid()
+                # print(np.array(x[i]).shape)
                 if not torch.onnx.is_in_onnx_export():
+                    # print((y[...,2:4]*2)**2*self.anchor_grid[i])
                     y[..., 0:2] = (y[..., 0:2] * 2. - 0.5 + self.grid[i]) * self.stride[i]  # xy
                     y[..., 2:4] = (y[..., 2:4] * 2) ** 2 * self.anchor_grid[i]  # wh
                 else:
@@ -61,6 +66,7 @@ class Detect(nn.Module):
                     wh = wh ** 2 * (4 * self.anchor_grid[i].data)  # new wh
                     y = torch.cat((xy, wh, conf), 4)
                 z.append(y.view(bs, -1, self.no))
+                # print(np.array(z[0]))
 
         if self.training:
             out = x
@@ -117,6 +123,7 @@ class IDetect(nn.Module):
         self.im = nn.ModuleList(ImplicitM(self.no * self.na) for _ in ch)
 
     def forward(self, x):
+        # print('accessed')
         # x = x.copy()  # for profiling
         z = []  # inference output
         self.training |= self.export
@@ -580,6 +587,7 @@ class Model(nn.Module):
 
     def forward(self, x, augment=False, profile=False):
         if augment:
+            
             img_size = x.shape[-2:]  # height, width
             s = [1, 0.83, 0.67]  # scales
             f = [None, 3, None]  # flips (2-ud, 3-lr)
@@ -594,6 +602,7 @@ class Model(nn.Module):
                 elif fi == 3:
                     yi[..., 0] = img_size[1] - yi[..., 0]  # de-flip lr
                 y.append(yi)
+                
             return torch.cat(y, 1), None  # augmented inference, train
         else:
             return self.forward_once(x, profile)  # single-scale inference, train
@@ -601,6 +610,7 @@ class Model(nn.Module):
     def forward_once(self, x, profile=False):
         y, dt = [], []  # outputs
         for m in self.model:
+            # print(m.f)
             if m.f != -1:  # if not from previous layer
                 x = y[m.f] if isinstance(m.f, int) else [x if j == -1 else y[j] for j in m.f]  # from earlier layers
 
@@ -625,6 +635,8 @@ class Model(nn.Module):
             x = m(x)  # run
             
             y.append(x if m.i in self.save else None)  # save output
+
+        # print(np.array(x[0]))
 
         if profile:
             print('%.1fms total' % sum(dt))
@@ -694,19 +706,24 @@ class Model(nn.Module):
         print('Fusing layers... ')
         for m in self.model.modules():
             if isinstance(m, RepConv):
+                
                 #print(f" fuse_repvgg_block")
                 m.fuse_repvgg_block()
             elif isinstance(m, RepConv_OREPA):
+                
                 #print(f" switch_to_deploy")
                 m.switch_to_deploy()
             elif type(m) is Conv and hasattr(m, 'bn'):
+                
                 m.conv = fuse_conv_and_bn(m.conv, m.bn)  # update conv
                 delattr(m, 'bn')  # remove batchnorm
                 m.forward = m.fuseforward  # update forward
             elif isinstance(m, (IDetect, IAuxDetect)):
+                
                 m.fuse()
                 m.forward = m.fuseforward
         self.info()
+        
         return self
 
     def nms(self, mode=True):  # add or remove NMS module
@@ -824,6 +841,7 @@ if __name__ == '__main__':
     device = select_device(opt.device)
 
     # Create model
+    # print('I am being accessed!')
     model = Model(opt.cfg).to(device)
     model.train()
     
